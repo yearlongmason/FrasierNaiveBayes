@@ -55,9 +55,27 @@ class NaiveBayes:
             
         return tokenCounts
 
-    def getProbabilities(line: str) -> dict[str, float]:
+    def getProbabilities(self, train: dict[str, list[str]], line: str) -> dict[str, float]:
         """This returns a dictionary of the probability for each character"""
-        pass
+        probabilies = defaultdict(float)
+        tokenizedLines = self.getWordCounts(train) # Gets word counts for each character
+        totalNumLines = sum([len(lines) for lines in train.values()]) # Total number of lines in trianing set
+
+        # Loop through each character
+        for character in train.keys():
+            # Get the total number of words they spoke
+            totalNumWords = sum([len(charLine.split()) for charLine in train[character]])
+            numCharLines = len(train[character])
+            probabilies[character] = numCharLines / totalNumLines # Initial guess (initial probability)
+            
+            # For each word in the line, get the probability of that word being spoken by the character
+            # Multiply the current probability by the new word's probability (updating our beliefs based on new data) 
+            for word in line.split():
+                probabilies[character] *= ((tokenizedLines[character][word] + 1) / totalNumWords)
+                # Good for debugging / seeing what's going on:
+                #print(f"{word}: {tokenizedLines[character][word] + 1} | New probability = {probabilies[character]}")
+
+        return probabilies
 
     def classifyLine(line: str) -> str:
         """Using the helper functions, this will take in a line and classify it as a specific character"""
@@ -73,3 +91,10 @@ if __name__ == "__main__":
     frasierNBModel = NaiveBayes()
     frasierNBModel.getData(filePath="./data/cleanedTranscript.csv")
     train, test = frasierNBModel.trainTestSplit()
+    
+    # This is just a test line
+    probabilities = frasierNBModel.getProbabilities(train, "im listening")
+    for character, prob in probabilities.items():
+        print(f"{character}: {prob}")
+
+    print(max(list(probabilities.items()), key=lambda pair: pair[1]))
