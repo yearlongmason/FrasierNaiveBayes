@@ -10,7 +10,7 @@ class NaiveBayes:
     def __init__(self):
         pass
 
-    def getData(self, filePath: str) -> dict[str, list[str]]:
+    def getData(self, filePath: str, normalizeLens: bool=False) -> dict[str, list[str]]:
         """Sets self.characterLines equal to data from specified file in format: 
         {characterName: [allCharacter lines], ... }
         This function should also return characterLines"""
@@ -24,9 +24,16 @@ class NaiveBayes:
                     line = row[1]
                     self.characterLines[character].append(line)
 
+        # Make all characters have the same number of lines
+        if normalizeLens:
+            minLen = min([len(lines) for lines in self.characterLines.values()])
+            for character in self.characterLines.keys():
+                 shuffle(self.characterLines[character])
+                 self.characterLines[character]= self.characterLines[character][:minLen]
+
         return self.characterLines
 
-    def trainTestSplit(self, testSize: int=.25) -> tuple[dict[str, list[str]]]:
+    def trainTestSplit(self, testSize: float=.25, strictTestSize: int=None) -> tuple[dict[str, list[str]]]:
         """This function splits and returns data into testing and training sets"""
         # Creates two copies of the original character lines dictionary
         train = defaultdict(list)
@@ -39,6 +46,8 @@ class NaiveBayes:
             splitPoint = int(len(shuffledLines) * (1 - testSize))
             
             # Set the training and testing lines for the character
+            if strictTestSize:
+                splitPoint = len(shuffledLines) - strictTestSize
             train[character] = shuffledLines[:splitPoint]
             test[character] = shuffledLines[splitPoint:]
 
@@ -55,10 +64,9 @@ class NaiveBayes:
             
         return tokenCounts
 
-    def getProbabilities(self, train: dict[str, list[str]], line: str) -> dict[str, float]:
+    def getProbabilities(self, train: dict[str, list[str]], line: str, tokenizedLines=None) -> dict[str, float]:
         """This returns a dictionary of the probability for each character"""
         probabilies = defaultdict(float)
-        tokenizedLines = self.getWordCounts(train) # Gets word counts for each character
         totalNumLines = sum([len(lines) for lines in train.values()]) # Total number of lines in trianing set
 
         # Loop through each character
@@ -77,24 +85,36 @@ class NaiveBayes:
 
         return probabilies
 
-    def classifyLine(line: str) -> str:
+    def classifyLine(self, train: dict[str, list[str]], line: str, wordCounts) -> str:
         """Using the helper functions, this will take in a line and classify it as a specific character"""
-        pass
+        return max(self.getProbabilities(train, line, wordCounts).items(), key=lambda pair: pair[1])
 
-    def scoreCharacter(character: str) -> float:
+    def scoreCharacter(self, character: str, train: dict[str, list[str]], test: dict[str, list[str]], wordCounts) -> float:
         """This will score how well the model does with a specific character"""
-        pass
+        numRight = 0
+        for i, line in enumerate(test[character]):
+            if self.classifyLine(train, line, wordCounts)[0] == character:
+                numRight += 1
+                # print(f"{i}: {numRight}") # Good for checking progress
+
+        return numRight/len(test[character])
 
 
 if __name__ == "__main__":
     # getData file path: "./data/cleanedTranscript.csv"
     frasierNBModel = NaiveBayes()
     frasierNBModel.getData(filePath="./data/cleanedTranscript.csv")
-    train, test = frasierNBModel.trainTestSplit()
+    train, test = frasierNBModel.trainTestSplit(testSize=.05, strictTestSize=200)
     
-    # This is just a test line
-    probabilities = frasierNBModel.getProbabilities(train, "im listening")
+    """# Gets probabilities for a specific line
+    probabilities = frasierNBModel.getProbabilities(train, "beer son fras")
     for character, prob in probabilities.items():
         print(f"{character}: {prob}")
 
-    print(max(list(probabilities.items()), key=lambda pair: pair[1]))
+    print(frasierNBModel.classifyLine(train, "beer son fras"))
+    print()"""
+
+    wordCounts = frasierNBModel.getWordCounts(train)
+    for character in train.keys():
+        #if character == "Roz":
+        print(f"{character} score: {frasierNBModel.scoreCharacter(character, train, test, wordCounts)}")
