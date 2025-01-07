@@ -10,10 +10,13 @@ class NaiveBayes:
     def __init__(self):
         pass
 
-    def getData(self, filePath: str, normalizeLens: bool=False) -> dict[str, list[str]]:
+    def getData(self, filePath: str, normalizeLens: bool=False, minWords: int=None, maxWords: int=None) -> dict[str, list[str]]:
         """Sets self.characterLines equal to data from specified file in format: 
         {characterName: [allCharacter lines], ... }
         This function should also return characterLines"""
+        # Define the word range
+        wordRange = (0 if not minWords else minWords, 9999 if not maxWords else maxWords)
+
         self.characterLines = defaultdict(list)
         with open(filePath, newline='', encoding="utf8") as file:
             # Loop through each csv row
@@ -22,7 +25,10 @@ class NaiveBayes:
                 if row[14] == "main":
                     character = row[0]
                     line = row[1]
-                    self.characterLines[character].append(line)
+
+                    # Account for minWords and maxWords parameters
+                    if len(line.split()) >= wordRange[0] and len(line.split()) <= wordRange[1]:
+                        self.characterLines[character].append(line)
 
         # Make all characters have the same number of lines
         if normalizeLens:
@@ -100,21 +106,26 @@ class NaiveBayes:
         return numRight/len(test[character])
 
 
-if __name__ == "__main__":
-    # getData file path: "./data/cleanedTranscript.csv"
+def runFrasierNB(minWordsTest: int=None, minWordsAll: int=None, strictTestSize: int=None, printLinesPerCharacter: bool=False):
+    """This function is used to run a test, it returns nothing but prints out each character's score"""
     frasierNBModel = NaiveBayes()
-    frasierNBModel.getData(filePath="./data/cleanedTranscript.csv")
-    train, test = frasierNBModel.trainTestSplit(testSize=.05, strictTestSize=200)
-    
-    """# Gets probabilities for a specific line
-    probabilities = frasierNBModel.getProbabilities(train, "beer son fras")
-    for character, prob in probabilities.items():
-        print(f"{character}: {prob}")
+    frasierNBModel.getData(filePath="./data/cleanedTranscript.csv", minWords=minWordsAll)
+    train, test = frasierNBModel.trainTestSplit(testSize=.25, strictTestSize=strictTestSize)
 
-    print(frasierNBModel.classifyLine(train, "beer son fras"))
-    print()"""
+    if minWordsTest:
+        # Remove lines less than or equal to minWordsTest
+        for character in test.keys():
+            test[character] = [line for line in test[character] if len(line.split()) >= minWordsTest]
+
+    # Get number of lines per character
+    if printLinesPerCharacter:
+        for i in frasierNBModel.characterLines.keys():
+            print(f"{i}: {len(frasierNBModel.characterLines[i])}", end=" ")
+            print(f"Train: {len(train[i])} | Test: {len(test[i])}")
 
     wordCounts = frasierNBModel.getWordCounts(train)
     for character in train.keys():
-        #if character == "Roz":
         print(f"{character} score: {frasierNBModel.scoreCharacter(character, train, test, wordCounts)}")
+
+if __name__ == "__main__":
+    runFrasierNB(strictTestSize=500, printLinesPerCharacter=True, minWordsTest=10)
