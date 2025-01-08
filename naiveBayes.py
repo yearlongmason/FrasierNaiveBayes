@@ -51,6 +51,9 @@ class NaiveBayes:
             # Get the split point (amount of data we're taking for the training data)
             splitPoint = int(len(shuffledLines) * (1 - testSize))
             
+
+            # Get all lines with valid length and get subset of it
+            # Set train equal to the rest of the valid lengths and the invalid lengths!
             # Set the training and testing lines for the character
             if strictTestSize:
                 splitPoint = len(shuffledLines) - strictTestSize
@@ -123,9 +126,14 @@ def runFrasierNB(minWordsTest: int=None, minWordsAll: int=None, strictTestSize: 
             print(f"{i}: {len(frasierNBModel.characterLines[i])}", end=" ")
             print(f"Train: {len(train[i])} | Test: {len(test[i])}")
 
+    # Print out each character's score
     wordCounts = frasierNBModel.getWordCounts(train)
     for character in train.keys():
-        print(f"{character} score: {frasierNBModel.scoreCharacter(character, train, test, wordCounts)}")
+        print(f"{character}: {frasierNBModel.scoreCharacter(character, train, test, wordCounts)}")
 
 if __name__ == "__main__":
-    runFrasierNB(strictTestSize=500, printLinesPerCharacter=True, minWordsTest=10)
+    # Run through multiple tests using different minWord values
+    for minWords in [5, 10, 15, 20, 25]:
+        print(f"Testing with lines that have a minimum of {minWords} words:")
+        runFrasierNB(strictTestSize=500, minWordsTest=minWords)
+        print()
