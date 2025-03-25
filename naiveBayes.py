@@ -109,12 +109,11 @@ class NaiveBayes:
 
     def scoreCharacter(self, character: str, train: dict[str, list[str]], test: dict[str, list[str]], wordCounts) -> float:
         """This will score how well the model does with a specific character"""
-        numRight = 0
+        predictions = defaultdict(int)
         for i, line in enumerate(test[character]):
-            if self.classifyLine(train, line, wordCounts)[0] == character:
-                numRight += 1
+            predictions[self.classifyLine(train, line, wordCounts)[0]] += 1
 
-        return numRight/len(test[character])
+        return predictions[character]/len(test[character]), dict(predictions)
 
 
 def runFrasierNB(minWordsTest: int=None, minWordsAll: int=None, strictTestSize: int=None, printLinesPerCharacter: bool=False):
@@ -129,10 +128,16 @@ def runFrasierNB(minWordsTest: int=None, minWordsAll: int=None, strictTestSize: 
             print(f"{i}: {len(frasierNBModel.characterLines[i])}", end=" ")
             print(f"Train: {len(train[i])} | Test: {len(test[i])}")
 
+    characterConfusionMatrix = dict()
     # Print out each character's score
     wordCounts = frasierNBModel.getWordCounts(train)
     for character in train.keys():
-        print(f"{character}: {frasierNBModel.scoreCharacter(character, train, test, wordCounts)}")
+        score, predictions = frasierNBModel.scoreCharacter(character, train, test, wordCounts)
+        characterConfusionMatrix[character] = predictions
+        print(f"{character}: {score}")
+    
+    print(characterConfusionMatrix)
+    return characterConfusionMatrix
 
 if __name__ == "__main__":
     # Run through multiple tests using different minWord values
